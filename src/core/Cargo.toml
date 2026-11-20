@@ -1,0 +1,9 @@
+[package]
+name = "optifine-capes-core"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "The game-independent half of the OptiFine capes mod: which names are asked, which answers are capes, the cape texture a picture sits on, and which capes are shown"
+
+[dependencies]
+png = "0.18"

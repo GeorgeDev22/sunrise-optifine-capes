@@ -1,0 +1,17 @@
+id = "optifine_capes"
+name = "OptiFine Capes"
+version = "0.1.0"
+description = "Shows the capes players got from OptiFine. OptiFine's cape server is asked, over plain HTTP, for the names of the players you see."
+authors = ["GeorgeDev22"]
+license = "MIT"
+homepage = "https://github.com/GeorgeDev22/sunrise-optifine-capes"
+issues = "https://github.com/GeorgeDev22/sunrise-optifine-capes/issues"
+api = "0.2"
+side = "client"
+capabilities = ["registries"]
+
+[native]
+game = "26.3"
+# Needs a build with `Hooks::resolve_player_layer` (sunrise-org/sunrise#3624): once one is
+# released, `cargo sunrise-mod update` moves this pin to it.
+sunrise = "2d8126336e579777eabf9b2fd8b3d476236a04f2"

@@ -1,0 +1,76 @@
+name: build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  # What doesn't need the game: the name check, the picture's layout, the answers kept and the
+  # capes shown.
+  core:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test the core
+        run: cargo test --manifest-path src/core/Cargo.toml
+
+  # The mod itself needs a game build with `Hooks::resolve_player_layer`
+  # (sunrise-org/sunrise#3624). Until the pin in sunrise-mod.toml names one, it runs only when
+  # started by hand; then it runs on every push like the core.
+  mod:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: System libraries the game links
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev libudev-dev
+
+      - name: Install cargo-sunrise-mod
+        run: |
+          set -eu
+          base=https://github.com/sunrise-org/sunrise/releases/download
+          key=r53xb3cuafGxZSicLz06KC+xXp9NJdPH8snNmXo5pAc=
+          tool=tool-x86_64-unknown-linux-gnu.tar.xz
+          build=$(sed -n 's/^sunrise = "\([0-9a-f]\{40\}\)"/\1/p' sunrise-mod.toml)
+
+          # Installs the tool from a release, once Sunrise's key has signed its checksums.
+          install_from() {
+            work=$(mktemp -d)
+            ( cd "$work"
+              curl -fsSLO "$base/$1/$tool"
+              curl -fsSLO "$base/$1/SHA256SUMS"
+              curl -fsSLO "$base/$1/SHA256SUMS.sig"
+              printf 'horizon release %s\n' "$1" | cat - SHA256SUMS > message
+              { printf '\060\052\060\005\006\003\053\145\160\003\041\000'; printf '%s' "$key" | openssl base64 -d -A; } > key.der
+              signed=
+              while read -r line || [ -n "$line" ]; do
+                printf '%s' "$line" | openssl base64 -d -A > signature
+                openssl pkeyutl -verify -rawin -pubin -keyform DER -inkey key.der -in message -sigfile signature > /dev/null 2>&1 && signed=1
+              done < SHA256SUMS.sig
+              [ -n "$signed" ] || { echo "SHA256SUMS of $1 is not signed by Sunrise" >&2; exit 1; }
+              grep " $tool\$" SHA256SUMS | sha256sum -c -
+              tar -xJf "$tool"
+              install -Dm755 cargo-sunrise-mod "$HOME/.local/bin/cargo-sunrise-mod" )
+          }
+
+          install_from "sdk-$build"
+          # A tool older than the docs answers --version with its usage: take the newest one.
+          if ! "$HOME/.local/bin/cargo-sunrise-mod" sunrise-mod --version | grep -qE '^[0-9a-f]{7,}'; then
+            install_from mod-tool
+          fi
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Build the mod against the pinned game
+        run: cargo sunrise-mod build --update-lock
+
+      - name: Check the package
+        run: cargo sunrise-mod check target/sunrise-mod/optifine_capes.smod
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: optifine-capes
+          path: |
+            target/sunrise-mod/optifine_capes.smod
+            Cargo.lock

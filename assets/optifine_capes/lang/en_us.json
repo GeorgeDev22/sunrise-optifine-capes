@@ -1,0 +1,4 @@
+{
+  "optifine_capes.setting.enabled": "OptiFine Capes",
+  "optifine_capes.setting.enabled.tooltip": "Shows the capes players got from OptiFine. To find them, OptiFine's cape server is asked, over plain HTTP, for the name of each player you see, so it learns who you play with."
+}
